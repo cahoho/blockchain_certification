@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Web + Node + Python + MetaMask 签名验证</title>
+</head>
+<body>
+    <h2>区块链签名通信示例</h2>
+
+    <!-- 钱包连接 -->
+    <div id="wallet">
+        <button id="connectBtn" onclick="connectWallet()">连接 MetaMask 钱包</button>
+        <p id="walletAddress">未连接</p>
+    </div>
+
+    <hr>
+
+    <div>
+        <h3>普通消息</h3>
+        <input id="normalMsg" placeholder="输入消息">
+        <button onclick="sendNormal()">发送</button>
+    </div>
+
+    <div style="margin-top:20px;">
+        <h3>区块链加密（签名）消息</h3>
+        <input id="cryptoMsg" placeholder="输入要签名的消息">
+        <button onclick="sendSigned()">发送签名消息</button>
+    </div>
+
+    <hr>
+
+    <h2>来自 Python 的回复：</h2>
+    <div id="output">等待连接...</div>
+
+<script>
+let walletAddress = null;
+const ws = new WebSocket('ws://127.0.0.1:8088');
+
+// WebSocket事件
+ws.onopen = () => log('已连接到 Node.js 转发服务');
+ws.onmessage = (e) => log('Python 回复: ' + e.data);
+ws.onerror = () => log('WebSocket 连接错误');
+
+// 日志输出
+function log(msg) {
+    document.getElementById('output').innerHTML += msg + '<br>';
+}
+
+// 连接 MetaMask
+async function connectWallet() {
+    if (!window.ethereum) {
+        alert('请先安装 MetaMask');
+        return;
+    }
+
+    try {
+        const accounts = await ethereum.request({ method: 'eth_requestAccounts' });
+        walletAddress = accounts[0];
+        document.getElementById('walletAddress').innerText = '钱包地址：' + walletAddress;
+        log('已连接钱包：' + walletAddress);
+    } catch (err) {
+        alert('连接钱包失败: ' + err.message);
+    }
+}
+
+// 发送普通消息
+function sendNormal() {
+    const msg = document.getElementById('normalMsg').value;
+    ws.send(JSON.stringify({
+        type: 'ws',
+        message: msg,
+        wallet: walletAddress || '未连接'
+    }));
+    document.getElementById('normalMsg').value = '';
+}
+
+// 发送签名消息
+async function sendSigned() {
+    if (!walletAddress) return alert('请先连接 MetaMask 钱包');
+    const msg = document.getElementById('cryptoMsg').value;
+    if (!msg) return alert('请输入要签名的消息');
+
+    try {
+        const signature = await ethereum.request({//执行签名
+            method: 'personal_sign',
+            params: [msg, walletAddress],
+        });
+
+        log('已生成签名: ' + signature.slice(0, 20) + '...');
+
+        // 通过 Node 转发给 Python
+        ws.send(JSON.stringify({
+            type: 'blockchain',
+            message: msg,
+            wallet: walletAddress,
+            signature: signature
+        }));
+
+    } catch (err) {
+        console.error(err);
+        alert('签名失败: ' + err.message);
+    }
+}
+</script>
+</body>
+</html>
