@@ -49,13 +49,11 @@ wss.on('connection', (ws) => {
     ws.on('message', (message) => {
         console.log('浏览器发来:', message.toString());
 
-        // 1️先转发消息给 Python
-        if (pythonSocket && pythonSocket.readyState === WebSocket.OPEN) {
+        if (pythonSocket && pythonSocket.readyState === WebSocket.OPEN) {//对python进行转发
             pythonSocket.send(message.toString());
         }   
 
-        // 2️同时可广播给其他网页客户端（可选）
-        wss.clients.forEach(client => {
+        wss.clients.forEach(client => {//对其他所有客户端进行消息转发
             if (client.readyState === WebSocket.OPEN && client !== ws) {
                 client.send(message.toString());
             }
@@ -70,5 +68,5 @@ wss.on('connection', (ws) => {
     ws.on('close', () => console.log('网页断开连接'));
 });
 
-const PORT = 8088;
+const PORT = 9000;
 server.listen(PORT, () => console.log(`node.js 转发服务运行在 http://localhost:${PORT}`));
